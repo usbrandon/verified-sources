@@ -275,28 +275,34 @@ CHILD_ENDPOINTS: dict[str, dict[str, Any]] = {
         "array_key": "transitions",
         "skip_on_status": (401, 404),
     },
-    # Board children
+    # Board children. 400 = board doesn't support sprints/epics (kanban,
+    # next-gen without agile features). 404 = board was deleted between
+    # the /board listing and the child fetch (race), OR the agile API
+    # doesn't recognize the board (some board types).
     "sprints": {
         "parent": "boards",
         "api_path_template": "rest/agile/1.0/board/{id}/sprint",
         "pagination": "offset",
         "array_key": "values",
-        "skip_on_status": (400,),
+        "skip_on_status": (400, 404),
     },
     "epics": {
         "parent": "boards",
         "api_path_template": "rest/agile/1.0/board/{id}/epic",
         "pagination": "offset",
         "array_key": "values",
-        "skip_on_status": (400,),
+        "skip_on_status": (400, 404),
     },
-    # Sprint children
+    # Sprint children. 400 = sprint closed and can't be queried (rare).
+    # 404 = sprint deleted between the /sprint listing and the issue
+    # fetch.
     "sprint_issues": {
         "parent": "sprints",
         "api_path_template": "rest/agile/1.0/sprint/{id}/issue",
         "pagination": "offset",
         "array_key": "issues",
         "params": {"fields": "summary,status,assignee"},
+        "skip_on_status": (400, 404),
     },
     # Project children (Phase C)
     "project_components": {
