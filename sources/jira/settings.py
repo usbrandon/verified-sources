@@ -308,9 +308,14 @@ CHILD_ENDPOINTS: dict[str, dict[str, Any]] = {
     },
     "project_versions": {
         "parent": "projects",
-        "api_path_template": "rest/api/3/project/{id}/versions",
-        "pagination": "none",
-        "array_key": None,
+        # The paginated form (/project/{id}/version, singular) scales
+        # to projects with many versions; the non-paginated /versions
+        # endpoint returns the whole list in one request and is the
+        # simpler option for small projects but unsafe if any project
+        # accumulates hundreds of versions. Matches Estuary's choice.
+        "api_path_template": "rest/api/3/project/{id}/version",
+        "pagination": "offset",
+        "array_key": "values",
         "skip_on_status": (404,),
     },
     "project_emails": {
