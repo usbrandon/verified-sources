@@ -58,7 +58,7 @@ __all__ = [
 ]
 
 
-@dlt.source(max_table_nesting=2, name="jira")
+@dlt.source(max_table_nesting=2, name="jira", section="jira")
 def jira(
     subdomain: str = dlt.secrets.value,
     email: str = dlt.secrets.value,
@@ -148,7 +148,7 @@ def jira(
     yield screen_tabs_resource(top_resources["screens"], **auth)
 
 
-@dlt.source(max_table_nesting=2)
+@dlt.source(max_table_nesting=2, name="jira", section="jira")
 def jira_search(
     subdomain: str = dlt.secrets.value,
     email: str = dlt.secrets.value,
