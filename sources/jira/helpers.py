@@ -32,6 +32,7 @@ from typing import Any, Iterable, Iterator, Optional
 
 from dlt.common.typing import DictStrAny, TDataItem
 from dlt.sources.helpers import requests
+from dlt.sources.helpers.requests import HTTPError
 
 
 # Pagination kinds — keep as bare strings rather than an Enum so the
@@ -66,6 +67,32 @@ def _extract_rows(
     return []
 
 
+def _get(url, *, auth, params, skip_on_status: tuple[int, ...]):
+    """Wrap dlt's requests.get with a skip_on_status escape hatch.
+
+    dlt's session calls raise_for_status() automatically on 4xx/5xx
+    BEFORE returning, so a naive `if resp.status_code in skip_on_status`
+    check never runs. Catch HTTPError and inspect the response — for
+    skippable statuses (e.g. 400 for boards without sprint support,
+    404 for archived projects, 403 for paid-only endpoints) we return
+    None instead of propagating. Anything else re-raises so dlt's
+    retry layer still does its job.
+
+    Returns None to signal "skip this resource silently" or the parsed
+    JSON body on success.
+    """
+    try:
+        resp = requests.get(
+            url, auth=auth, headers={"Accept": "application/json"}, params=params,
+        )
+        return resp.json()
+    except HTTPError as e:
+        status = getattr(e.response, "status_code", None)
+        if status in skip_on_status:
+            return None
+        raise
+
+
 def paginate(
     subdomain: str,
     api_path: str,
@@ -98,7 +125,10 @@ def paginate(
                         available here", silently. Used for agile
                         endpoints that 400 on boards without sprint
                         support, and project children that 404 on
-                        archived projects.
+                        archived projects. Caught from dlt's HTTPError
+                        (the session raises before returning, so
+                        checking resp.status_code post-hoc doesn't work
+                        — see _get()).
         is_last_key:    Some endpoints return isLast=true on the final
                         page even when len(page)==page_size; honoring it
                         avoids one extra request. Set None to disable.
@@ -108,16 +138,14 @@ def paginate(
         get flat row streams.
     """
     base_params: dict[str, Any] = dict(params or {})
-    headers = {"Accept": "application/json"}
     auth = (email, api_token)
     url = _url(subdomain, api_path)
 
     if pagination == NONE:
-        resp = requests.get(url, auth=auth, headers=headers, params=base_params)
-        if resp.status_code in skip_on_status:
+        body = _get(url, auth=auth, params=base_params, skip_on_status=skip_on_status)
+        if body is None:
             return
-        resp.raise_for_status()
-        rows = _extract_rows(resp.json(), array_key=array_key)
+        rows = _extract_rows(body, array_key=array_key)
         yield from rows
         return
 
@@ -127,11 +155,9 @@ def paginate(
         start_at = 0
         base_params["startAt"] = start_at
         while True:
-            resp = requests.get(url, auth=auth, headers=headers, params=base_params)
-            if resp.status_code in skip_on_status:
+            body = _get(url, auth=auth, params=base_params, skip_on_status=skip_on_status)
+            if body is None:
                 return
-            resp.raise_for_status()
-            body = resp.json()
             rows = _extract_rows(body, array_key=array_key)
             if not rows:
                 return
@@ -148,11 +174,9 @@ def paginate(
     if pagination == CURSOR:
         # /search/jql + similar — cursor is in body, not a header.
         while True:
-            resp = requests.get(url, auth=auth, headers=headers, params=base_params)
-            if resp.status_code in skip_on_status:
+            body = _get(url, auth=auth, params=base_params, skip_on_status=skip_on_status)
+            if body is None:
                 return
-            resp.raise_for_status()
-            body = resp.json()
             rows = _extract_rows(body, array_key=array_key)
             if not rows:
                 return
