@@ -354,6 +354,42 @@ def issue_custom_field_contexts_resource(
     return _ctx
 
 
+def screen_tabs_resource(
+    parent_screens: DltResource,
+    *,
+    subdomain: str,
+    email: str,
+    api_token: str,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> DltResource:
+    """Tabs of each screen. Atlassian requires the screen id in the path
+    (/rest/api/3/screens/{screenId}/tabs)."""
+    cfg = CHILD_ENDPOINTS["screen_tabs"]
+
+    @dlt.transformer(
+        name="screen_tabs",
+        data_from=parent_screens,
+        write_disposition="replace",
+    )
+    def _tabs(parent_screen: TDataItem) -> Iterator[TDataItem]:
+        screen_id = parent_screen["id"]
+        api_path = cfg["api_path_template"].format(id=screen_id)
+        for row in paginate(
+            subdomain=subdomain,
+            api_path=api_path,
+            email=email,
+            api_token=api_token,
+            pagination=cfg["pagination"],
+            array_key=cfg["array_key"],
+            page_size=page_size,
+            skip_on_status=tuple(cfg.get("skip_on_status") or ()),
+        ):
+            row["screen_id"] = screen_id
+            yield row
+
+    return _tabs
+
+
 def filter_sharing_resource(
     parent_filters: DltResource,
     *,

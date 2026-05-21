@@ -37,6 +37,7 @@ from .resources import (
     project_components_resource,
     project_emails_resource,
     project_versions_resource,
+    screen_tabs_resource,
     sprint_issues_resource,
     sprints_resource,
 )
@@ -139,11 +140,12 @@ def jira(
     yield project_emails_resource(projects, **auth)
     yield project_avatars_resource(projects, **auth)
 
-    # Field / filter children (Phase C)
+    # Field / filter / screen children (Phase C)
     yield issue_custom_field_contexts_resource(
         top_resources["issue_fields"], **auth,
     )
     yield filter_sharing_resource(top_resources["filters"], **auth)
+    yield screen_tabs_resource(top_resources["screens"], **auth)
 
 
 @dlt.source(max_table_nesting=2)

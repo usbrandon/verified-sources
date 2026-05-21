@@ -183,11 +183,9 @@ PHASE_B_TOP_LEVEL: dict[str, dict[str, Any]] = {
         "pagination": "offset",
         "array_key": "values",
     },
-    "screen_tabs": {
-        "api_path": "rest/api/3/screens/tabs",
-        "pagination": "offset",
-        "array_key": "values",
-    },
+    # NOTE: screen_tabs is NOT a top-level endpoint — Atlassian's API
+    # requires the screen id (/rest/api/3/screens/{screenId}/tabs).
+    # It's declared in CHILD_ENDPOINTS below and fans out from `screens`.
     "screen_schemes": {
         "api_path": "rest/api/3/screenscheme",
         "pagination": "offset",
@@ -336,6 +334,16 @@ CHILD_ENDPOINTS: dict[str, dict[str, Any]] = {
         "pagination": "offset",
         "array_key": "values",
         "skip_on_status": (400, 404),
+    },
+    # Screen children
+    # /rest/api/3/screens/{screenId}/tabs returns a bare JSON array (no
+    # values envelope, no pagination).
+    "screen_tabs": {
+        "parent": "screens",
+        "api_path_template": "rest/api/3/screens/{id}/tabs",
+        "pagination": "none",
+        "array_key": None,
+        "skip_on_status": (404,),
     },
     # Filter children (Phase C)
     "filter_sharing": {
