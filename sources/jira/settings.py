@@ -349,12 +349,15 @@ CHILD_ENDPOINTS: dict[str, dict[str, Any]] = {
     # Screen children
     # /rest/api/3/screens/{screenId}/tabs returns a bare JSON array (no
     # values envelope, no pagination).
+    # 400 = some screens return 400 for unclear reasons (likely an
+    # admin-permission edge case on system screens).
+    # 404 = screen deleted between /screens listing and tab fetch.
     "screen_tabs": {
         "parent": "screens",
         "api_path_template": "rest/api/3/screens/{id}/tabs",
         "pagination": "none",
         "array_key": None,
-        "skip_on_status": (404,),
+        "skip_on_status": (400, 404),
     },
     # Filter children (Phase C)
     "filter_sharing": {
